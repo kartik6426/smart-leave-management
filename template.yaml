@@ -198,7 +198,24 @@ Resources:
             Path: /leave/pending
             Method: get
             RestApiId: !Ref LeaveManagementApi
-            
+  GetBalanceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/get_balance/
+      Handler: app.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref LeaveBalancesTable
+      Environment:
+        Variables:
+          LEAVE_BALANCES_TABLE: !Ref LeaveBalancesTable
+      Events:
+        GetBalanceApi:
+          Type: Api
+          Properties:
+            Path: /balance
+            Method: get
+            RestApiId: !Ref LeaveManagementApi
 Outputs:
 
   SubmitLeaveApi:

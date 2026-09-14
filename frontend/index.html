@@ -157,7 +157,7 @@
             <input
                 type="text"
                 id="employeeId"
-                value="EMP001"
+                value="EMP002"
                 placeholder="Enter employee ID"
             >
         </div>
@@ -167,7 +167,7 @@
             <input
                 type="text"
                 id="employeeName"
-                value="Test Employee"
+                value="Demo Employee"
                 placeholder="Enter employee name"
             >
         </div>
@@ -175,31 +175,29 @@
 
 
     <!-- Leave Balance -->
-    <div class="card">
-        <h2>Leave Balance</h2>
+<div class="card">
+    <h2>Leave Balance</h2>
 
-        <div class="balance-grid">
+    <div class="balance-grid">
+        <div class="balance">
+            Sick Leave
+            <strong id="sickBalance">-</strong>
+            Days
+        </div>
 
-            <div class="balance">
-                Sick Leave
-                <strong>12</strong>
-                Days
-            </div>
+        <div class="balance">
+            Casual Leave
+            <strong id="casualBalance">-</strong>
+            Days
+        </div>
 
-            <div class="balance">
-                Casual Leave
-                <strong>12</strong>
-                Days
-            </div>
-
-            <div class="balance">
-                Earned Leave
-                <strong>15</strong>
-                Days
-            </div>
-
+        <div class="balance">
+            Earned Leave
+            <strong id="earnedBalance">-</strong>
+            Days
         </div>
     </div>
+</div>
 
 
     <!-- Apply Leave -->
@@ -274,9 +272,69 @@
     const API_URL =
     "https://8s6b30rgtb.execute-api.ap-south-1.amazonaws.com/Prod/leave";
 
+    const BALANCE_API_URL =
+    "https://8s6b30rgtb.execute-api.ap-south-1.amazonaws.com/Prod/balance";
+
     const leaveForm = document.getElementById("leaveForm");
     const messageBox = document.getElementById("message");
+    async function loadBalances() {
+    const employeeId =
+        document.getElementById("employeeId").value.trim();
 
+    if (!employeeId) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            BALANCE_API_URL +
+            "?employee_id=" +
+            encodeURIComponent(employeeId)
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error(data);
+            return;
+        }
+
+        const balances = data.balances || {};
+
+        let sick = 0;
+        let casual = 0;
+        let earned = 0;
+
+        if (Array.isArray(balances)) {
+            balances.forEach(function(balance) {
+                if (balance.leave_type_year === "sick#2026") {
+                    sick = balance.remaining;
+                }
+
+                if (balance.leave_type_year === "casual#2026") {
+                    casual = balance.remaining;
+                }
+
+                if (balance.leave_type_year === "earned#2026") {
+                    earned = balance.remaining;
+                }
+            });
+        }
+
+        document.getElementById("sickBalance").textContent = sick;
+        document.getElementById("casualBalance").textContent = casual;
+        document.getElementById("earnedBalance").textContent = earned;
+
+    } catch (error) {
+        console.error("Balance error:", error);
+    }
+}
+loadBalances();
+
+document.getElementById("employeeId").addEventListener(
+    "change",
+    loadBalances
+);
 
     leaveForm.addEventListener("submit", async function(event) {
 
@@ -356,6 +414,7 @@
                     data.request_id;
 
                 leaveForm.reset();
+                loadBalances();
 
             } else {
 
