@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Leave Management</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            background: #1f4e78;
+            color: white;
+            padding: 20px 40px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+        }
+
+        header p {
+            margin: 6px 0 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #1f4e78;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 7px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 90px;
+        }
+
+        button {
+            background: #1f4e78;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        button:hover {
+            background: #163a5c;
+        }
+
+        #message {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .balance-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .balance {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .balance strong {
+            display: block;
+            font-size: 24px;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 700px) {
+            .balance-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Smart Leave & Absence Management</h1>
+    <p>Employee Leave Portal</p>
+</header>
+
+<div class="container">
+
+    <!-- Employee Information -->
+    <div class="card">
+        <h2>Employee Information</h2>
+
+        <div class="form-group">
+            <label for="employeeId">Employee ID</label>
+            <input
+                type="text"
+                id="employeeId"
+                value="EMP001"
+                placeholder="Enter employee ID"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="employeeName">Employee Name</label>
+            <input
+                type="text"
+                id="employeeName"
+                value="Test Employee"
+                placeholder="Enter employee name"
+            >
+        </div>
+    </div>
+
+
+    <!-- Leave Balance -->
+    <div class="card">
+        <h2>Leave Balance</h2>
+
+        <div class="balance-grid">
+
+            <div class="balance">
+                Sick Leave
+                <strong>12</strong>
+                Days
+            </div>
+
+            <div class="balance">
+                Casual Leave
+                <strong>12</strong>
+                Days
+            </div>
+
+            <div class="balance">
+                Earned Leave
+                <strong>15</strong>
+                Days
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- Apply Leave -->
+    <div class="card">
+
+        <h2>Apply for Leave</h2>
+
+        <form id="leaveForm">
+
+            <div class="form-group">
+                <label for="leaveType">Leave Type</label>
+
+                <select id="leaveType" required>
+                    <option value="">Select leave type</option>
+                    <option value="sick">Sick Leave</option>
+                    <option value="casual">Casual Leave</option>
+                    <option value="earned">Earned Leave</option>
+                    <option value="unpaid">Unpaid Leave</option>
+                </select>
+            </div>
+
+
+            <div class="form-group">
+                <label for="startDate">Start Date</label>
+
+                <input
+                    type="date"
+                    id="startDate"
+                    required
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="endDate">End Date</label>
+
+                <input
+                    type="date"
+                    id="endDate"
+                    required
+                >
+            </div>
+
+
+            <div class="form-group">
+                <label for="reason">Reason</label>
+
+                <textarea
+                    id="reason"
+                    placeholder="Enter reason for leave"
+                    required
+                ></textarea>
+            </div>
+
+
+            <button type="submit">
+                Submit Leave Request
+            </button>
+
+        </form>
+
+        <div id="message"></div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    // API Gateway endpoint
+    const API_URL =
+    "https://8s6b30rgtb.execute-api.ap-south-1.amazonaws.com/Prod/leave";
+
+    const leaveForm = document.getElementById("leaveForm");
+    const messageBox = document.getElementById("message");
+
+
+    leaveForm.addEventListener("submit", async function(event) {
+
+        event.preventDefault();
+
+
+        const employeeId =
+            document.getElementById("employeeId").value.trim();
+
+        const employeeName =
+            document.getElementById("employeeName").value.trim();
+
+        const leaveType =
+            document.getElementById("leaveType").value;
+
+        const startDate =
+            document.getElementById("startDate").value;
+
+        const endDate =
+            document.getElementById("endDate").value;
+
+        const reason =
+            document.getElementById("reason").value.trim();
+
+
+        const requestBody = {
+
+            employee_id: employeeId,
+
+            employee_name: employeeName,
+
+            leave_type: leaveType,
+
+            start_date: startDate,
+
+            end_date: endDate,
+
+            reason: reason
+
+        };
+
+
+        messageBox.style.display = "block";
+
+        messageBox.className = "";
+
+        messageBox.textContent =
+            "Submitting leave request...";
+
+
+        try {
+
+            const response = await fetch(
+                API_URL,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify(requestBody)
+                }
+            );
+
+
+            const data = await response.json();
+
+
+            if (response.ok) {
+
+                messageBox.className = "success";
+
+                messageBox.textContent =
+                    "Leave request submitted successfully. " +
+                    "Request ID: " +
+                    data.request_id;
+
+                leaveForm.reset();
+
+            } else {
+
+                messageBox.className = "error";
+
+                messageBox.textContent =
+                    data.message ||
+                    "Unable to submit leave request.";
+
+            }
+
+        } catch (error) {
+
+            console.error(error);
+
+            messageBox.className = "error";
+
+            messageBox.textContent =
+                "Unable to connect to the leave management API.";
+
+        }
+
+    });
+
+</script>
+
+</body>
+</html>

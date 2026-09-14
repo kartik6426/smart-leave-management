@@ -1,0 +1,56 @@
+{
+  "Comment": "Smart Leave Management - Multi-Level Approval Workflow",
+  "StartAt": "CheckLeaveStatus",
+  "States": {
+    "CheckLeaveStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "leave_requests_dev",
+        "Key": {
+          "employee_id": {
+            "S.$": "$.employee_id"
+          },
+          "request_id": {
+            "S.$": "$.request_id"
+          }
+        }
+      },
+      "ResultPath": "$.leave_data",
+      "Next": "CheckApprovalStatus"
+    },
+
+    "CheckApprovalStatus": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.leave_data.Item.status.S",
+          "StringEquals": "APPROVED",
+          "Next": "Approved"
+        },
+        {
+          "Variable": "$.leave_data.Item.status.S",
+          "StringEquals": "REJECTED",
+          "Next": "Rejected"
+        }
+      ],
+      "Default": "WaitForHR"
+    },
+
+    "WaitForHR": {
+      "Type": "Wait",
+      "Seconds": 10,
+      "Next": "CheckLeaveStatus"
+    },
+
+    "Approved": {
+      "Type": "Succeed"
+    },
+
+    "Rejected": {
+      "Type": "Fail",
+      "Error": "LeaveRejected",
+      "Cause": "Leave request was rejected"
+    }
+  }
+}

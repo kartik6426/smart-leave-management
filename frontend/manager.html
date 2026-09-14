@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Manager Dashboard - Smart Leave Management</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+        }
+
+        h1 {
+            color: #1f4e79;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        button {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+
+        .refresh {
+            background: #1f4e79;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .approve {
+            background: #198754;
+            color: white;
+        }
+
+        .reject {
+            background: #dc3545;
+            color: white;
+        }
+
+        .message {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .success {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 13px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #1f4e79;
+            color: white;
+        }
+
+        .empty {
+            padding: 25px;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Manager Dashboard</h1>
+
+    <div class="subtitle">
+        Smart Leave & Absence Management
+    </div>
+
+    <button class="refresh" onclick="loadRequests()">
+        Refresh Requests
+    </button>
+
+    <div id="message" class="message"></div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Leave Type</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Days</th>
+                <th>Reason</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody id="requestTable">
+        </tbody>
+    </table>
+
+</div>
+
+<script>
+
+const PENDING_API =
+    "https://8s6b30rgtb.execute-api.ap-south-1.amazonaws.com/Prod/leave/pending";
+
+const APPROVAL_API =
+    "https://8s6b30rgtb.execute-api.ap-south-1.amazonaws.com/Prod/approval";
+
+
+function showMessage(text, type) {
+
+    const message = document.getElementById("message");
+
+    message.textContent = text;
+    message.className = "message " + type;
+    message.style.display = "block";
+}
+
+
+async function loadRequests() {
+
+    const table = document.getElementById("requestTable");
+
+    table.innerHTML = `
+        <tr>
+            <td colspan="7" class="empty">
+                Loading requests...
+            </td>
+        </tr>
+    `;
+
+    try {
+
+        const response = await fetch(PENDING_API);
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Unable to load requests.");
+        }
+
+        const requests = data.requests || [];
+
+        if (requests.length === 0) {
+
+            table.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty">
+                        No pending leave requests.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        table.innerHTML = "";
+
+        requests.forEach(request => {
+
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+                <td>${request.employee_name || request.employee_id}</td>
+
+                <td>${request.leave_type || "-"}</td>
+
+                <td>${request.start_date || "-"}</td>
+
+                <td>${request.end_date || "-"}</td>
+
+                <td>${request.days || "-"}</td>
+
+                <td>${request.reason || "-"}</td>
+
+                <td>
+                    <button
+                        class="approve"
+                        onclick="processRequest('${request.request_id}', 'approve')">
+                        Approve
+                    </button>
+
+                    <button
+                        class="reject"
+                        onclick="processRequest('${request.request_id}', 'reject')">
+                        Reject
+                    </button>
+                </td>
+            `;
+
+            table.appendChild(row);
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        table.innerHTML = `
+            <tr>
+                <td colspan="7" class="empty">
+                    Unable to load pending requests.
+                </td>
+            </tr>
+        `;
+
+        showMessage(error.message, "error");
+    }
+}
+
+
+async function processRequest(requestId, action) {
+
+    const body = {
+        request_id: requestId,
+        action: action,
+        manager_id: "MANAGER001"
+    };
+
+    try {
+
+        const response = await fetch(APPROVAL_API, {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Approval operation failed.");
+        }
+
+        showMessage(
+            data.message || "Request processed successfully.",
+            "success"
+        );
+
+        loadRequests();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showMessage(error.message, "error");
+    }
+}
+
+
+loadRequests();
+
+</script>
+
+</body>
+</html>

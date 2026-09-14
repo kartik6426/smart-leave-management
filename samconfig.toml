@@ -1,0 +1,13 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "smart-leave-management"
+resolve_s3 = true
+s3_prefix = "smart-leave-management"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=\"dev\""
+image_repositories = []
+
+[default.global.parameters]
+region = "ap-south-1"

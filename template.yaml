@@ -1,0 +1,222 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Smart Leave and Absence Management Engine
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Timeout: 30
+    MemorySize: 256
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+
+Resources:
+  # ============================================================
+  # API GATEWAY
+  # ============================================================
+
+  LeaveManagementApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type'"
+        AllowMethods: "'GET,POST,OPTIONS'"
+
+  # ============================================================
+  # 1. LEAVE REQUESTS TABLE
+  # ============================================================
+
+  LeaveRequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "leave_requests_${Environment}"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: employee_id
+          AttributeType: S
+        - AttributeName: request_id
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: employee_id
+          KeyType: HASH
+        - AttributeName: request_id
+          KeyType: RANGE
+
+
+  # ============================================================
+  # 2. LEAVE BALANCES TABLE
+  # ============================================================
+
+  LeaveBalancesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "leave_balances_${Environment}"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: employee_id
+          AttributeType: S
+        - AttributeName: leave_type_year
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: employee_id
+          KeyType: HASH
+        - AttributeName: leave_type_year
+          KeyType: RANGE
+
+
+  # ============================================================
+  # 3. LEAVE CONFIGURATION TABLE
+  # ============================================================
+
+  LeaveConfigTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "leave_config_${Environment}"
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: leave_type
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: leave_type
+          KeyType: HASH
+
+
+  # ============================================================
+  # 4. SUBMIT LEAVE LAMBDA
+  # ============================================================
+
+  SubmitLeaveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/submit_leave/
+      Handler: app.lambda_handler
+
+      Environment:
+        Variables:
+          LEAVE_REQUESTS_TABLE: !Ref LeaveRequestsTable
+          LEAVE_BALANCES_TABLE: !Ref LeaveBalancesTable
+          LEAVE_CONFIG_TABLE: !Ref LeaveConfigTable
+          SNS_TOPIC_ARN: "arn:aws:sns:ap-south-1:542850952390:smart-leave-manager-notifications"
+
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaveRequestsTable
+
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaveBalancesTable
+
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaveConfigTable
+
+        - SNSPublishMessagePolicy:
+            TopicName: smart-leave-manager-notifications
+
+      Events:
+        SubmitLeaveApi:
+          Type: Api
+          Properties:
+            Path: /leave
+            Method: post
+            RestApiId: !Ref LeaveManagementApi
+
+
+  # ============================================================
+  # 5. APPROVAL LAMBDA
+  # ============================================================
+
+  ApprovalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/approval/
+      Handler: app.lambda_handler
+
+      Environment:
+        Variables:
+          LEAVE_REQUESTS_TABLE: !Ref LeaveRequestsTable
+          LEAVE_BALANCES_TABLE: !Ref LeaveBalancesTable
+          STATE_MACHINE_ARN: "arn:aws:states:ap-south-1:542850952390:stateMachine:SmartLeaveApprovalWorkflow"
+          SES_EMAIL: "kartiksaindanev@gmail.com"
+
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaveRequestsTable
+
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaveBalancesTable
+
+        - Statement:
+            Effect: Allow
+            Action:
+              - states:StartExecution
+            Resource: "arn:aws:states:ap-south-1:542850952390:stateMachine:SmartLeaveApprovalWorkflow"
+
+        - Statement:
+            Effect: Allow
+            Action:
+              - ses:SendEmail
+              - ses:SendRawEmail
+            Resource: "*"
+
+      Events:
+        ApprovalApi:
+          Type: Api
+          Properties:
+            Path: /approval
+            Method: post
+            RestApiId: !Ref LeaveManagementApi
+
+  GetPendingLeavesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/get_pending_leaves/
+      Handler: app.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref LeaveRequestsTable
+      Environment:
+        Variables:
+          LEAVE_REQUESTS_TABLE: !Ref LeaveRequestsTable
+      Events:
+        GetPendingLeavesApi:
+          Type: Api
+          Properties:
+            Path: /leave/pending
+            Method: get
+            RestApiId: !Ref LeaveManagementApi
+            
+Outputs:
+
+  SubmitLeaveApi:
+    Description: API endpoint for submitting leave requests
+    Value: !Sub "https://${LeaveManagementApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/leave"
+
+  ApprovalApi:
+    Description: API endpoint for leave approval and rejection
+    Value: !Sub "https://${LeaveManagementApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/approval"
+
+  LeaveRequestsTableName:
+    Description: Leave requests DynamoDB table
+    Value: !Ref LeaveRequestsTable
+
+  LeaveBalancesTableName:
+    Description: Leave balances DynamoDB table
+    Value: !Ref LeaveBalancesTable
+
+  LeaveConfigTableName:
+    Description: Leave configuration DynamoDB table
+    Value: !Ref LeaveConfigTable
