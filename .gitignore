@@ -1,4 +1,34 @@
+﻿# AWS SAM generated/build files
 .aws-sam/
-.venv/
+samconfig.toml
+
+# Python cache
 __pycache__/
 *.pyc
+
+# Temporary AWS CLI/test artifacts
+processed-template.json
+translated.yaml
+resources.json
+request-key.json
+employee-key.json
+submit-env.json
+weekly-test-response.json
+
+# Temporary deployment/package files
+manager-timeout.zip
+weekly-balance.zip
+
+# Local S3 website configuration
+# Keep these if you want to document the hosting configuration:
+# website.json
+# bucket-policy.json
+
+# Local environment
+.env
+.venv/
+venv/
+
+# OS/editor files
+.DS_Store
+Thumbs.db

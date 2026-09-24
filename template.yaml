@@ -1,3 +1,4 @@
+﻿# API infrastructure sync update
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Smart Leave and Absence Management Engine
@@ -26,10 +27,69 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Prod
+      MergeDefinitions: true
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: Smart Leave Management API
+          version: "1.0"
+        paths:
+          /leave:
+            post:
+              responses:
+                "200":
+                  description: Leave request submitted
+          /leave/pending:
+            get:
+              responses:
+                "200":
+                  description: Pending leave requests
+          /approval:
+            get:
+              responses:
+                "200":
+                  description: Approval link response
+            post:
+              responses:
+                "200":
+                  description: Approval response
+          /balance:
+            get:
+              responses:
+                "200":
+                  description: Employee leave balance
       Cors:
         AllowOrigin: "'*'"
         AllowHeaders: "'Content-Type'"
         AllowMethods: "'GET,POST,OPTIONS'"
+
+  ManagerTimeoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/manager_timeout/
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      Timeout: 30
+      Environment:
+        Variables:
+          LEAVE_REQUESTS_TABLE: leave_requests_dev
+          SES_EMAIL: kartiksaindanedev@gmail.com
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: leave_requests_dev
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+      Events:
+        HourlyManagerTimeout:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Enabled: true
+            Description: Check for manager inactivity beyond 48 hours
 
   # ============================================================
   # 1. LEAVE REQUESTS TABLE
@@ -55,7 +115,7 @@ Resources:
 
 
   # ============================================================
-  # 2. LEAVE BALANCES TABLE
+  # 2. LEAVE BALANCES TABLE 
   # ============================================================
 
   LeaveBalancesTable:
@@ -106,27 +166,28 @@ Resources:
       CodeUri: backend/submit_leave/
       Handler: app.lambda_handler
 
-      Environment:
-        Variables:
-          LEAVE_REQUESTS_TABLE: !Ref LeaveRequestsTable
-          LEAVE_BALANCES_TABLE: !Ref LeaveBalancesTable
-          LEAVE_CONFIG_TABLE: !Ref LeaveConfigTable
-          SNS_TOPIC_ARN: "arn:aws:sns:ap-south-1:542850952390:smart-leave-manager-notifications"
+    Environment:
+      Variables:
+        LEAVE_REQUESTS_TABLE: !Ref LeaveRequestsTable
+        LEAVE_BALANCES_TABLE: !Ref LeaveBalancesTable
+        LEAVE_CONFIG_TABLE: !Ref LeaveConfigTable
+        SNS_TOPIC_ARN: "arn:aws:sns:ap-south-1:542850952390:smart-leave-manager-notifications"
+        APPROVAL_SECRET: "SmartLeaveApprovalSecret2026"
+        APPROVAL_BASE_URL: "https://8s6b30rgtb.execute-api.ap-south-1.amazonaws.com/Prod/approval"
 
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref LeaveRequestsTable
+    Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref LeaveRequestsTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref LeaveBalancesTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref LeaveConfigTable
+      - SNSPublishMessagePolicy:
+          TopicName: smart-leave-manager-notifications
 
-        - DynamoDBCrudPolicy:
-            TableName: !Ref LeaveBalancesTable
 
-        - DynamoDBCrudPolicy:
-            TableName: !Ref LeaveConfigTable
 
-        - SNSPublishMessagePolicy:
-            TopicName: smart-leave-manager-notifications
-
-      Events:
+        Events:
         SubmitLeaveApi:
           Type: Api
           Properties:
@@ -151,6 +212,7 @@ Resources:
           LEAVE_BALANCES_TABLE: !Ref LeaveBalancesTable
           STATE_MACHINE_ARN: "arn:aws:states:ap-south-1:542850952390:stateMachine:SmartLeaveApprovalWorkflow"
           SES_EMAIL: "kartiksaindanev@gmail.com"
+          APPROVAL_SECRET: "SmartLeaveApprovalSecret2026"
 
       Policies:
         - DynamoDBCrudPolicy:
@@ -178,6 +240,13 @@ Resources:
           Properties:
             Path: /approval
             Method: post
+            RestApiId: !Ref LeaveManagementApi
+
+        ApprovalLinkApi:
+          Type: Api
+          Properties:
+            Path: /approval
+            Method: get
             RestApiId: !Ref LeaveManagementApi
 
   GetPendingLeavesFunction:

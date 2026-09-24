@@ -3,59 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>HR Dashboard - Smart Leave Management</title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Arial, sans-serif;
             background: #f3f6f9;
             margin: 0;
-            padding: 40px;
+            padding: 30px;
+            color: #222;
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1250px;
             margin: auto;
+        }
+
+        .header {
             background: white;
-            padding: 35px;
-            border-radius: 10px;
+            padding: 28px 30px;
+            border-radius: 12px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
         }
 
         h1 {
             color: #205581;
-            margin-bottom: 5px;
+            margin: 0 0 6px;
         }
 
         .subtitle {
-            color: #555;
-            margin-bottom: 30px;
+            color: #666;
         }
 
-        label {
-            display: block;
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 22px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        }
+
+        .summary-card h3 {
+            margin: 0 0 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .summary-card .number {
+            font-size: 30px;
             font-weight: bold;
-            margin-bottom: 8px;
+            color: #205581;
         }
 
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            color: #205581;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        select,
         input {
-            width: 100%;
-            padding: 13px;
-            box-sizing: border-box;
+            padding: 10px 12px;
             border: 1px solid #ccc;
             border-radius: 6px;
-            margin-bottom: 20px;
-            font-size: 15px;
+            font-size: 14px;
         }
 
         button {
-            padding: 12px 24px;
+            padding: 10px 18px;
             border: none;
             border-radius: 6px;
             color: white;
-            font-size: 15px;
+            font-size: 14px;
             cursor: pointer;
-            margin-right: 10px;
+        }
+
+        .refresh {
+            background: #205581;
+        }
+
+        .download {
+            background: #6f42c1;
         }
 
         .approve {
@@ -66,21 +128,154 @@
             background: #dc3545;
         }
 
-        #message {
-            margin-top: 25px;
-            padding: 15px;
-            border-radius: 6px;
-            display: none;
+        button:hover {
+            opacity: 0.9;
         }
 
-        .success {
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #f1f4f7;
+            color: #444;
+            text-align: left;
+            padding: 13px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        td {
+            padding: 13px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+        }
+
+        tr:hover {
+            background: #fafafa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .pending {
+            background: #fff3cd;
+            color: #664d03;
+        }
+
+        .approved {
             background: #d1e7dd;
             color: #0f5132;
         }
 
-        .error {
+        .rejected {
             background: #f8d7da;
             color: #842029;
+        }
+
+        .timeout {
+            background: #e2e3e5;
+            color: #41464b;
+        }
+
+        .hr {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 7px;
+        }
+
+        .action-buttons button {
+            padding: 7px 12px;
+            font-size: 12px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 15px;
+        }
+
+        .calendar-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            background: #fafcfe;
+        }
+
+        .calendar-date {
+            font-weight: bold;
+            color: #205581;
+            margin-bottom: 8px;
+        }
+
+        .calendar-employee {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .calendar-details {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        #message {
+            padding: 14px;
+            border-radius: 7px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success-message {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 30px;
+            color: #777;
+        }
+
+        @media (max-width: 850px) {
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 550px) {
+            body {
+                padding: 15px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -89,95 +284,630 @@
 
 <div class="container">
 
-    <h1>HR Dashboard</h1>
-    <div class="subtitle">Smart Leave & Absence Management</div>
-
-    <label for="requestId">Leave Request ID</label>
-
-    <input
-        type="text"
-        id="requestId"
-        placeholder="Enter Request ID"
-    >
-
-    <button class="approve" onclick="processRequest('hr_approve')">
-        Approve Leave
-    </button>
-
-    <button class="reject" onclick="processRequest('hr_reject')">
-        Reject Leave
-    </button>
+    <div class="header">
+        <h1>HR Dashboard</h1>
+        <div class="subtitle">
+            Smart Leave & Absence Management
+        </div>
+    </div>
 
     <div id="message"></div>
 
+    <div class="summary-grid">
+
+        <div class="summary-card">
+            <h3>Total Requests</h3>
+            <div class="number" id="totalRequests">0</div>
+        </div>
+
+        <div class="summary-card">
+            <h3>Pending Manager</h3>
+            <div class="number" id="pendingManager">0</div>
+        </div>
+
+        <div class="summary-card">
+            <h3>Pending HR</h3>
+            <div class="number" id="pendingHR">0</div>
+        </div>
+
+        <div class="summary-card">
+            <h3>Approved</h3>
+            <div class="number" id="approvedRequests">0</div>
+        </div>
+
+    </div>
+
+
+    <!-- ABSENCE CALENDAR -->
+
+    <div class="section">
+
+        <div class="section-header">
+            <h2>Team Absence Calendar</h2>
+
+            <div class="controls">
+                <button class="refresh" onclick="loadRequests()">
+                    Refresh
+                </button>
+
+                <button class="download" onclick="downloadCSV()">
+                    Download Leave Report
+                </button>
+            </div>
+        </div>
+
+        <div id="calendar" class="calendar-grid">
+            <div class="loading">
+                Loading absence data...
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- FILTERS -->
+
+    <div class="section">
+
+        <div class="section-header">
+
+            <h2>Leave Requests</h2>
+
+            <div class="controls">
+
+                <input
+                    type="text"
+                    id="employeeFilter"
+                    placeholder="Employee ID"
+                    oninput="applyFilters()"
+                >
+
+                <select id="leaveTypeFilter" onchange="applyFilters()">
+                    <option value="">All Leave Types</option>
+                    <option value="sick">Sick</option>
+                    <option value="casual">Casual</option>
+                    <option value="earned">Earned</option>
+                    <option value="unpaid">Unpaid</option>
+                </select>
+
+                <select id="statusFilter" onchange="applyFilters()">
+                    <option value="">All Statuses</option>
+                    <option value="PENDING_MANAGER">Pending Manager</option>
+                    <option value="PENDING_HR">Pending HR</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                    <option value="MANAGER_TIMEOUT">Manager Timeout</option>
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <div class="table-wrapper">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>Employee</th>
+                        <th>Leave Type</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Days</th>
+                        <th>Status</th>
+                        <th>Reason</th>
+                        <th>Action</th>
+                    </tr>
+
+                </thead>
+
+                <tbody id="requestsTable">
+
+                    <tr>
+                        <td colspan="8" class="loading">
+                            Loading requests...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
 </div>
+
 
 <script>
 
-const API_URL =
+const ALL_LEAVES_API =
+    "https://8s6b30rgtb.execute-api.ap-south-1.amazonaws.com/Prod/leave/pending?view=all";
+
+const APPROVAL_API =
     "https://8s6b30rgtb.execute-api.ap-south-1.amazonaws.com/Prod/approval";
 
-async function processRequest(action) {
+let allRequests = [];
 
-    const requestId =
-        document.getElementById("requestId").value.trim();
 
-    const message =
-        document.getElementById("message");
+function showMessage(text, type) {
 
-    if (!requestId) {
-        message.className = "error";
-        message.style.display = "block";
-        message.textContent = "Please enter the Request ID.";
-        return;
+    const message = document.getElementById("message");
+
+    message.style.display = "block";
+
+    if (type === "success") {
+        message.className = "success-message";
+    } else {
+        message.className = "error-message";
     }
+
+    message.textContent = text;
+
+    setTimeout(() => {
+        message.style.display = "none";
+    }, 4000);
+}
+
+
+function statusBadge(status) {
+
+    let className = "";
+
+    if (status === "APPROVED") {
+        className = "approved";
+    } else if (status === "REJECTED") {
+        className = "rejected";
+    } else if (status === "MANAGER_TIMEOUT") {
+        className = "timeout";
+    } else if (status === "PENDING_HR") {
+        className = "hr";
+    } else {
+        className = "pending";
+    }
+
+    return `
+        <span class="badge ${className}">
+            ${status.replaceAll("_", " ")}
+        </span>
+    `;
+}
+
+
+async function loadRequests() {
+
+    const table = document.getElementById("requestsTable");
+
+    table.innerHTML = `
+        <tr>
+            <td colspan="8" class="loading">
+                Loading requests...
+            </td>
+        </tr>
+    `;
 
     try {
 
-        const response = await fetch(API_URL, {
+        const response = await fetch(ALL_LEAVES_API);
 
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                request_id: requestId,
-                action: action,
-                manager_id: "HR001"
-            })
-
-        });
+        if (!response.ok) {
+            throw new Error("Unable to retrieve leave requests.");
+        }
 
         const data = await response.json();
 
-        message.style.display = "block";
+        allRequests = data.requests || [];
 
-        if (response.ok) {
+        updateSummary();
 
-            message.className = "success";
+        applyFilters();
 
-            message.textContent =
-                data.message || "Request processed successfully.";
-
-        } else {
-
-            message.className = "error";
-
-            message.textContent =
-                data.message || "Unable to process request.";
-
-        }
+        renderCalendar();
 
     } catch (error) {
 
-        message.className = "error";
-        message.style.display = "block";
-        message.textContent = "Unable to connect to the approval API.";
+        console.error(error);
 
+        table.innerHTML = `
+            <tr>
+                <td colspan="8" class="empty">
+                    Unable to load leave requests.
+                </td>
+            </tr>
+        `;
+
+        showMessage(
+            "Unable to connect to the leave management API.",
+            "error"
+        );
     }
 }
+
+
+function updateSummary() {
+
+    document.getElementById("totalRequests").textContent =
+        allRequests.length;
+
+    document.getElementById("pendingManager").textContent =
+        allRequests.filter(
+            item => item.status === "PENDING_MANAGER"
+        ).length;
+
+    document.getElementById("pendingHR").textContent =
+        allRequests.filter(
+            item => item.status === "PENDING_HR"
+        ).length;
+
+    document.getElementById("approvedRequests").textContent =
+        allRequests.filter(
+            item => item.status === "APPROVED"
+        ).length;
+}
+
+
+function applyFilters() {
+
+    const employee =
+        document.getElementById("employeeFilter").value
+        .trim()
+        .toLowerCase();
+
+    const leaveType =
+        document.getElementById("leaveTypeFilter").value;
+
+    const status =
+        document.getElementById("statusFilter").value;
+
+    const filtered = allRequests.filter(item => {
+
+        const employeeMatch =
+            !employee ||
+            (item.employee_id || "")
+                .toLowerCase()
+                .includes(employee);
+
+        const leaveTypeMatch =
+            !leaveType ||
+            item.leave_type === leaveType;
+
+        const statusMatch =
+            !status ||
+            item.status === status;
+
+        return employeeMatch &&
+               leaveTypeMatch &&
+               statusMatch;
+    });
+
+    renderTable(filtered);
+}
+
+
+function renderTable(requests) {
+
+    const table =
+        document.getElementById("requestsTable");
+
+    if (!requests.length) {
+
+        table.innerHTML = `
+            <tr>
+                <td colspan="8" class="empty">
+                    No leave requests found.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    table.innerHTML = requests.map(item => {
+
+        let actionHTML = "-";
+
+        if (item.status === "PENDING_HR") {
+
+            actionHTML = `
+                <div class="action-buttons">
+
+                    <button
+                        class="approve"
+                        onclick="processHRRequest(
+                            '${item.request_id}',
+                            'hr_approve'
+                        )">
+                        Approve
+                    </button>
+
+                    <button
+                        class="reject"
+                        onclick="processHRRequest(
+                            '${item.request_id}',
+                            'hr_reject'
+                        )">
+                        Reject
+                    </button>
+
+                </div>
+            `;
+        }
+
+
+        return `
+            <tr>
+
+                <td>
+                    <strong>${item.employee_name || "-"}</strong>
+                    <br>
+                    <small>${item.employee_id || "-"}</small>
+                </td>
+
+                <td>
+                    ${(item.leave_type || "-").toUpperCase()}
+                </td>
+
+                <td>${item.start_date || "-"}</td>
+
+                <td>${item.end_date || "-"}</td>
+
+                <td>${item.days || "0"}</td>
+
+                <td>
+                    ${statusBadge(item.status || "")}
+                </td>
+
+                <td>
+                    ${item.reason || "-"}
+                </td>
+
+                <td>
+                    ${actionHTML}
+                </td>
+
+            </tr>
+        `;
+
+    }).join("");
+}
+
+
+function renderCalendar() {
+
+    const calendar =
+        document.getElementById("calendar");
+
+    const absenceRequests =
+        allRequests.filter(item =>
+            item.status === "APPROVED" ||
+            item.status === "PENDING_HR" ||
+            item.status === "PENDING_MANAGER"
+        );
+
+    if (!absenceRequests.length) {
+
+        calendar.innerHTML = `
+            <div class="empty">
+                No current absence records.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    calendar.innerHTML = absenceRequests.map(item => {
+
+        return `
+            <div class="calendar-card">
+
+                <div class="calendar-date">
+                    ${item.start_date || "-"}
+                    →
+                    ${item.end_date || "-"}
+                </div>
+
+                <div class="calendar-employee">
+                    ${item.employee_name || "Employee"}
+                </div>
+
+                <div class="calendar-details">
+
+                    Employee ID:
+                    ${item.employee_id || "-"}
+                    <br>
+
+                    Leave:
+                    ${(item.leave_type || "-").toUpperCase()}
+                    <br>
+
+                    Days:
+                    ${item.days || "0"}
+                    <br>
+
+                    Status:
+                    ${item.status || "-"}
+
+                </div>
+
+            </div>
+        `;
+
+    }).join("");
+}
+
+
+async function processHRRequest(requestId, action) {
+
+    const actionName =
+        action === "hr_approve"
+            ? "approve"
+            : "reject";
+
+    const confirmed =
+        confirm(
+            `Are you sure you want to ${actionName} this leave request?`
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const response = await fetch(
+            APPROVAL_API,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    request_id: requestId,
+                    action: action,
+                    manager_id: "HR001"
+                })
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            showMessage(
+                data.message ||
+                "Unable to process HR approval.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        showMessage(
+            data.message ||
+            "Leave request processed successfully.",
+            "success"
+        );
+
+
+        await loadRequests();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showMessage(
+            "Unable to connect to the approval API.",
+            "error"
+        );
+    }
+}
+
+
+function csvEscape(value) {
+
+    const text =
+        String(value ?? "");
+
+    return `"${text.replaceAll('"', '""')}"`;
+}
+
+
+function downloadCSV() {
+
+    if (!allRequests.length) {
+
+        showMessage(
+            "No leave records available for download.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const headers = [
+        "Request ID",
+        "Employee ID",
+        "Employee Name",
+        "Leave Type",
+        "Start Date",
+        "End Date",
+        "Days",
+        "Status",
+        "Reason",
+        "Created At"
+    ];
+
+
+    const rows = allRequests.map(item => [
+
+        item.request_id,
+        item.employee_id,
+        item.employee_name,
+        item.leave_type,
+        item.start_date,
+        item.end_date,
+        item.days,
+        item.status,
+        item.reason,
+        item.created_at
+
+    ]);
+
+
+    const csv = [
+
+        headers.map(csvEscape).join(","),
+
+        ...rows.map(
+            row => row.map(csvEscape).join(",")
+        )
+
+    ].join("\n");
+
+
+    const blob =
+        new Blob(
+            [csv],
+            { type: "text/csv;charset=utf-8;" }
+        );
+
+
+    const url =
+        URL.createObjectURL(blob);
+
+
+    const link =
+        document.createElement("a");
+
+    link.href = url;
+
+    link.download =
+        "smart-leave-report.csv";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+}
+
+
+loadRequests();
 
 </script>
 

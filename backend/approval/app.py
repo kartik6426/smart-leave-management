@@ -1,7 +1,13 @@
+import base64
+import hashlib
+import hmac
+import time
 import os
 import json
 import boto3
 from decimal import Decimal
+SES_EMAIL = os.environ.get("SES_EMAIL")
+APPROVAL_SECRET = os.environ.get("APPROVAL_SECRET", "")
 
 dynamodb = boto3.resource("dynamodb")
 
@@ -64,8 +70,105 @@ def send_email(subject, message):
 def lambda_handler(event, context):
 
     try:
-        # Read API Gateway request body
-        body = event.get("body", event)
+                # Handle signed approval link
+        http_method = (
+            event.get("httpMethod")
+            or event.get("requestContext", {}).get("http", {}).get("method")
+            or ""
+        ).upper()
+
+        if http_method == "GET":
+
+            params = event.get("queryStringParameters") or {}
+            token = params.get("token")
+
+            if not token:
+                return response(
+                    400,
+                    {
+                        "message": "Approval token is required"
+                    }
+                )
+
+            try:
+                payload_encoded, signature_encoded = token.split(".", 1)
+
+                padding = "=" * (-len(signature_encoded) % 4)
+                provided_signature = base64.urlsafe_b64decode(
+                    signature_encoded + padding
+                )
+
+                expected_signature = hmac.new(
+                    APPROVAL_SECRET.encode(),
+                    payload_encoded.encode(),
+                    hashlib.sha256
+                ).digest()
+
+                if not hmac.compare_digest(
+                    provided_signature,
+                    expected_signature
+                ):
+                    return response(
+                        403,
+                        {
+                            "message": "Invalid approval token"
+                        }
+                    )
+
+                padding = "=" * (-len(payload_encoded) % 4)
+                payload_json = base64.urlsafe_b64decode(
+                    payload_encoded + padding
+                ).decode()
+
+                payload = json.loads(payload_json)
+
+                if int(payload.get("exp", 0)) < int(time.time()):
+                    return response(
+                        403,
+                        {
+                            "message": "Approval link has expired"
+                        }
+                    )
+
+                employee_id = payload.get("employee_id")
+                request_id = payload.get("request_id")
+                action = payload.get("action")
+
+                if action not in ["approve", "reject"]:
+                    return response(
+                        400,
+                        {
+                            "message": "Invalid approval action"
+                        }
+                    )
+
+                body = {
+                    "employee_id": employee_id,
+                    "request_id": request_id,
+                    "action": action
+                }
+
+            except Exception as token_error:
+                print("TOKEN ERROR:", str(token_error))
+
+                return response(
+                    403,
+                    {
+                        "message": "Invalid approval token"
+                    }
+                )
+
+        else:
+
+            # Read API Gateway request body
+            body = event.get("body") or {}
+
+        if isinstance(body, str):
+            body = json.loads(body)
+
+        request_id = body.get("request_id")
+        action = body.get("action")
+        manager_id = body.get("manager_id", "MANAGER001")
 
         if isinstance(body, str):
             body = json.loads(body)
@@ -82,25 +185,36 @@ def lambda_handler(event, context):
                 }
             )
 
-        # Find leave request
-        scan_response = leave_requests_table.scan(
-            FilterExpression="request_id = :rid",
-            ExpressionAttributeValues={
-                ":rid": request_id
-            }
-        )
-
-        items = scan_response.get("Items", [])
-
-        if not items:
-            return response(
-                404,
-                {
-                    "message": "Leave request not found"
-                }
+        # Find leave request using the DynamoDB primary key
+        if employee_id:
+            request_response = leave_requests_table.get_item(
+                Key={
+                    "employee_id": employee_id,
+                    "request_id": request_id
+               }
             )
 
-        leave = items[0]
+            leave = request_response.get("Item")
+
+        else:
+            # Fallback for direct POST requests that don't provide employee_id
+            scan_response = leave_requests_table.scan(
+                FilterExpression="request_id = :rid",
+                ExpressionAttributeValues={
+                 ":rid": request_id
+              }
+           )
+
+            items = scan_response.get("Items", [])
+            leave = items[0] if items else None
+
+        if not leave:
+           return response(
+               404,
+               {
+                   "message": "Leave request not found"
+               }
+          )
 
         employee_id = leave["employee_id"]
         leave_type = leave["leave_type"]

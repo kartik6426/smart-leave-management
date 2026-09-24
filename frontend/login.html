@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Leave Management - Login</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.12/dist/amazon-cognito-identity.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background: #f3f6f9;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 430px;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+
+        h1 {
+            color: #245784;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 28px;
+        }
+
+        label {
+            display: block;
+            margin-top: 16px;
+            margin-bottom: 7px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 22px;
+            padding: 13px;
+            background: #245784;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1c466b;
+        }
+
+        #message {
+            margin-top: 18px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .error {
+            display: block !important;
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .success {
+            display: block !important;
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="login-container">
+    <div class="login-card">
+
+        <h1>Smart Leave Management</h1>
+        <div class="subtitle">Secure Employee Login</div>
+
+        <div id="loginSection">
+
+            <label for="email">Email</label>
+            <input
+                type="email"
+                id="email"
+                placeholder="Enter your email"
+                autocomplete="username"
+            >
+
+            <label for="password">Password</label>
+            <input
+                type="password"
+                id="password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+            >
+
+            <button onclick="login()">Login</button>
+
+        </div>
+
+        <div id="newPasswordSection" class="hidden">
+
+            <h3>Set New Password</h3>
+
+            <p>
+                This is your first login. Please create a new permanent password.
+            </p>
+
+            <label for="newPassword">New Password</label>
+            <input
+                type="password"
+                id="newPassword"
+                placeholder="Enter new password"
+                autocomplete="new-password"
+            >
+
+            <button onclick="completeNewPassword()">Set Password</button>
+
+        </div>
+
+        <div id="message"></div>
+
+    </div>
+</div>
+
+<script>
+
+const USER_POOL_ID = "ap-south-1_5AyPVFfhG";
+
+const CLIENT_ID = "3cbfavhn7qru86v4s3sq5qhalj";
+
+let cognitoUser = null;
+
+function showMessage(message, type) {
+
+    const messageBox = document.getElementById("message");
+
+    messageBox.textContent = message;
+    messageBox.className = type;
+
+}
+
+function login() {
+
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+        showMessage("Please enter email and password.", "error");
+        return;
+    }
+
+    const authenticationData = {
+        Username: email,
+        Password: password
+    };
+
+    const authenticationDetails =
+        new AmazonCognitoIdentity.AuthenticationDetails(authenticationData);
+
+    const poolData = {
+        UserPoolId: USER_POOL_ID,
+        ClientId: CLIENT_ID
+    };
+
+    const userPool =
+        new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+    cognitoUser = new AmazonCognitoIdentity.CognitoUser({
+        Username: email,
+        Pool: userPool
+    });
+
+    showMessage("Signing in...", "success");
+
+    cognitoUser.authenticateUser(authenticationDetails, {
+
+        onSuccess: function(result) {
+
+            localStorage.setItem(
+                "cognitoIdToken",
+                result.getIdToken().getJwtToken()
+            );
+
+            localStorage.setItem(
+                "cognitoAccessToken",
+                result.getAccessToken().getJwtToken()
+            );
+
+            localStorage.setItem(
+                "cognitoUser",
+                email
+            );
+
+            showMessage("Login successful. Redirecting...", "success");
+
+            setTimeout(function() {
+                window.location.href = "index.html";
+            }, 800);
+        },
+
+        onFailure: function(error) {
+
+            console.error(error);
+
+            showMessage(
+                error.message || "Login failed.",
+                "error"
+            );
+        },
+
+        newPasswordRequired: function(userAttributes) {
+
+            delete userAttributes.email;
+            delete userAttributes.email_verified;
+
+            document.getElementById("loginSection").classList.add("hidden");
+
+            document.getElementById("newPasswordSection").classList.remove("hidden");
+
+            showMessage(
+                "Please create your permanent password.",
+                "success"
+            );
+        }
+
+    });
+}
+
+function completeNewPassword() {
+
+    const newPassword =
+        document.getElementById("newPassword").value;
+
+    if (!newPassword) {
+        showMessage("Please enter a new password.", "error");
+        return;
+    }
+
+    if (newPassword.length < 8) {
+        showMessage(
+            "Password must contain at least 8 characters.",
+            "error"
+        );
+        return;
+    }
+
+    cognitoUser.completeNewPasswordChallenge(
+        newPassword,
+        {},
+        {
+
+            onSuccess: function(result) {
+
+                localStorage.setItem(
+                    "cognitoIdToken",
+                    result.getIdToken().getJwtToken()
+                );
+
+                localStorage.setItem(
+                    "cognitoAccessToken",
+                    result.getAccessToken().getJwtToken()
+                );
+
+                localStorage.setItem(
+                    "cognitoUser",
+                    document.getElementById("email").value.trim()
+                );
+
+                showMessage(
+                    "Password updated successfully. Redirecting...",
+                    "success"
+                );
+
+                setTimeout(function() {
+                    window.location.href = "index.html";
+                }, 800);
+            },
+
+            onFailure: function(error) {
+
+                console.error(error);
+
+                showMessage(
+                    error.message || "Unable to update password.",
+                    "error"
+                );
+            }
+
+        }
+    );
+}
+
+</script>
+
+</body>
+</html>

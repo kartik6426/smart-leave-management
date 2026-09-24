@@ -1,11 +1,18 @@
 import json
 import os
 import uuid
+import base64
+import hashlib
+import hmac
+import time
+from urllib.parse import quote
 from datetime import datetime, date
 
 import boto3
 sns = boto3.client("sns")
 SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN")
+APPROVAL_SECRET = os.environ.get("APPROVAL_SECRET", "")
+APPROVAL_BASE_URL = os.environ.get("APPROVAL_BASE_URL", "")
 from boto3.dynamodb.conditions import Key
 
 
@@ -51,6 +58,34 @@ def response(status_code, body):
         "body": json.dumps(body)
     }
 
+def create_approval_token(employee_id, request_id, action, expires_in=172800):
+    payload = {
+        "employee_id": employee_id,
+        "request_id": request_id,
+        "action": action,
+        "exp": int(time.time()) + expires_in
+    }
+
+    payload_json = json.dumps(
+        payload,
+        separators=(",", ":")
+    ).encode()
+
+    payload_encoded = base64.urlsafe_b64encode(
+        payload_json
+    ).decode().rstrip("=")
+
+    signature = hmac.new(
+        APPROVAL_SECRET.encode(),
+        payload_encoded.encode(),
+        hashlib.sha256
+    ).digest()
+
+    signature_encoded = base64.urlsafe_b64encode(
+        signature
+    ).decode().rstrip("=")
+
+    return f"{payload_encoded}.{signature_encoded}"
 
 # ============================================================
 # LAMBDA HANDLER
@@ -305,10 +340,23 @@ def lambda_handler(event, context):
         )
 
         # Notify manager through SNS
+        # Notify manager through SNS with signed approval links
         if SNS_TOPIC_ARN:
+
+            approve_token = create_approval_token(employee_id, request_id, "approve")
+            reject_token = create_approval_token(employee_id, request_id, "reject")
+
+            approve_url = (
+                f"{APPROVAL_BASE_URL}?token={quote(approve_token)}"
+            )
+
+            reject_url = (
+                f"{APPROVAL_BASE_URL}?token={quote(reject_token)}"
+            )
+
             sns.publish(
                 TopicArn=SNS_TOPIC_ARN,
-                Subject="New Leave Request",
+                Subject="New Leave Request - Approval Required",
                 Message=(
                     f"New leave request submitted.\n\n"
                     f"Employee: {employee_name}\n"
@@ -319,9 +367,14 @@ def lambda_handler(event, context):
                     f"Days: {days}\n"
                     f"Reason: {reason}\n"
                     f"Request ID: {request_id}\n\n"
-                    f"Status: PENDING_MANAGER"
+                    f"Status: PENDING_MANAGER\n\n"
+                    f"APPROVE LEAVE:\n"
+                    f"{approve_url}\n\n"
+                    f"REJECT LEAVE:\n"
+                    f"{reject_url}\n\n"
+                    f"These approval links expire after 48 hours."
                 )
-            )
+        )
 
         # ----------------------------------------------------
         # IMPORTANT:
@@ -343,11 +396,11 @@ def lambda_handler(event, context):
                 "days": days,
                 "status": status
             }
-        )
+      )
 
-    # ========================================================
+        # ============================================================
     # ERROR HANDLING
-    # ========================================================
+    # ============================================================
 
     except Exception as error:
 

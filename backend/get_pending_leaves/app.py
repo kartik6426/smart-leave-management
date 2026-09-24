@@ -21,7 +21,6 @@ def response(status_code, body):
             "Access-Control-Allow-Methods": "GET,OPTIONS"
         },
         "body": json.dumps(body, default=str)
-        
     }
 
 
@@ -31,12 +30,20 @@ def lambda_handler(event, context):
 
         items = scan_response.get("Items", [])
 
-        pending_requests = [
-            item for item in items
-            if item.get("status") == "PENDING_MANAGER"
-        ]
+        query_params = event.get("queryStringParameters") or {}
+        view = query_params.get("view", "pending")
 
-        pending_requests.sort(
+        if view == "all":
+            requests = items
+            message = "All leave requests retrieved successfully"
+        else:
+            requests = [
+                item for item in items
+                if item.get("status") == "PENDING_MANAGER"
+            ]
+            message = "Pending manager requests retrieved successfully"
+
+        requests.sort(
             key=lambda x: x.get("created_at", ""),
             reverse=True
         )
@@ -44,9 +51,9 @@ def lambda_handler(event, context):
         return response(
             200,
             {
-                "message": "Pending manager requests retrieved successfully",
-                "count": len(pending_requests),
-                "requests": pending_requests
+                "message": message,
+                "count": len(requests),
+                "requests": requests
             }
         )
 

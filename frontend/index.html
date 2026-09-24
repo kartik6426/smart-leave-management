@@ -136,6 +136,67 @@
                 padding: 20px;
             }
         }
+    .history-card {
+    margin-top: 24px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+.secondary-btn {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+#leaveHistoryTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#leaveHistoryTable th,
+#leaveHistoryTable td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 9px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
     </style>
 </head>
 
@@ -260,6 +321,34 @@
         </form>
 
         <div id="message"></div>
+        <div class="card history-card">
+    <div class="section-header">
+        <h2>My Leave History</h2>
+        <button type="button" class="secondary-btn" onclick="loadLeaveHistory()">
+            Refresh
+        </button>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="leaveHistoryTable">
+            <thead>
+                <tr>
+                    <th>Leave Type</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Days</th>
+                    <th>Status</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody id="leaveHistoryBody">
+                <tr>
+                    <td colspan="6">Enter Employee ID to view leave history.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 
     </div>
 
@@ -438,6 +527,87 @@ document.getElementById("employeeId").addEventListener(
         }
 
     });
+
+const LEAVE_HISTORY_API_URL =
+    "https://8s6b30rgtb.execute-api.ap-south-1.amazonaws.com/Prod/leave/pending?view=all";
+
+async function loadLeaveHistory() {
+    const employeeId = document.getElementById("employeeId").value.trim();
+    const historyBody = document.getElementById("leaveHistoryBody");
+
+    if (!employeeId) {
+        historyBody.innerHTML =
+            '<tr><td colspan="6">Enter Employee ID to view leave history.</td></tr>';
+        return;
+    }
+
+    historyBody.innerHTML =
+        '<tr><td colspan="6">Loading leave history...</td></tr>';
+
+    try {
+        const response = await fetch(LEAVE_HISTORY_API_URL);
+
+        if (!response.ok) {
+            throw new Error("Unable to fetch leave history");
+        }
+
+        const data = await response.json();
+
+        const allLeaves = data.requests || data.leaves || [];
+
+        const employeeLeaves = allLeaves.filter(
+            leave => leave.employee_id === employeeId
+        );
+
+        if (employeeLeaves.length === 0) {
+            historyBody.innerHTML =
+                '<tr><td colspan="6">No leave records found for this employee.</td></tr>';
+            return;
+        }
+
+        employeeLeaves.sort(
+            (a, b) =>
+                new Date(b.created_at || b.start_date) -
+                new Date(a.created_at || a.start_date)
+        );
+
+        historyBody.innerHTML = employeeLeaves.map(leave => {
+            const status = leave.status || "UNKNOWN";
+
+            let statusClass = "status-pending";
+
+            if (status.includes("APPROVED")) {
+                statusClass = "status-approved";
+            } else if (
+                status.includes("REJECTED") ||
+                status.includes("TIMEOUT")
+            ) {
+                statusClass = "status-rejected";
+            }
+
+            return `
+                <tr>
+                    <td>${leave.leave_type || "-"}</td>
+                    <td>${leave.start_date || "-"}</td>
+                    <td>${leave.end_date || "-"}</td>
+                    <td>${leave.days || "-"}</td>
+                    <td>
+                        <span class="status-badge ${statusClass}">
+                            ${status}
+                        </span>
+                    </td>
+                    <td>${leave.reason || "-"}</td>
+                </tr>
+            `;
+        }).join("");
+
+    } catch (error) {
+        console.error("Leave history error:", error);
+
+        historyBody.innerHTML =
+            '<tr><td colspan="6">Unable to load leave history. Please try again.</td></tr>';
+    }
+}
 
 </script>
 
