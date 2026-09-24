@@ -32,3 +32,5 @@ venv/
 # OS/editor files
 .DS_Store
 Thumbs.db
+
+processed-template.yaml
