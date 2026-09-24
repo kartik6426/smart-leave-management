@@ -449,21 +449,26 @@ document.getElementById("employeeId").addEventListener(
             document.getElementById("reason").value.trim();
 
 
-        const requestBody = {
+        const employeeEmail =
+    localStorage.getItem("cognitoUser") || "";
 
-            employee_id: employeeId,
+const requestBody = {
 
-            employee_name: employeeName,
+    employee_id: employeeId,
 
-            leave_type: leaveType,
+    employee_name: employeeName,
 
-            start_date: startDate,
+    employee_email: employeeEmail,
 
-            end_date: endDate,
+    leave_type: leaveType,
 
-            reason: reason
+    start_date: startDate,
 
-        };
+    end_date: endDate,
+
+    reason: reason
+
+};
 
 
         messageBox.style.display = "block";

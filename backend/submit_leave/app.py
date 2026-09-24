@@ -10,7 +10,9 @@ from datetime import datetime, date
 
 import boto3
 sns = boto3.client("sns")
+ses = boto3.client("ses")
 SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN")
+SES_EMAIL = os.environ.get("SES_EMAIL", "")
 APPROVAL_SECRET = os.environ.get("APPROVAL_SECRET", "")
 APPROVAL_BASE_URL = os.environ.get("APPROVAL_BASE_URL", "")
 from boto3.dynamodb.conditions import Key
@@ -161,6 +163,7 @@ def lambda_handler(event, context):
 
         manager_id = str(body.get("manager_id", ""))
         manager_email = str(body.get("manager_email", ""))
+        employee_email = str(body.get("employee_email", "")).strip()
 
         # ----------------------------------------------------
         # 4. VALIDATE DATE FORMAT
@@ -324,6 +327,7 @@ def lambda_handler(event, context):
             "employee_id": employee_id,
             "request_id": request_id,
             "employee_name": employee_name,
+            "employee_email": employee_email,
             "leave_type": leave_type,
             "start_date": start_date,
             "end_date": end_date,
@@ -376,6 +380,35 @@ def lambda_handler(event, context):
                 )
         )
 
+        # Notify employee through SES
+        if SES_EMAIL and employee_email:
+            ses.send_email(
+                Source=SES_EMAIL,
+                Destination={
+                    "ToAddresses": [employee_email]
+                },
+                Message={
+                    "Subject": {
+                        "Data": "Leave Request Submitted"
+                    },
+                    "Body": {
+                        "Text": {
+                            "Data": (
+                                f"Hello {employee_name},\n\n"
+                                f"Your leave request has been submitted successfully.\n\n"
+                                f"Request ID: {request_id}\n"
+                                f"Leave Type: {leave_type}\n"
+                                f"Start Date: {start_date}\n"
+                                f"End Date: {end_date}\n"
+                                f"Days: {days}\n"
+                                f"Status: PENDING_MANAGER\n\n"
+                                f"Your request is now waiting for manager approval."
+                            )
+                        }
+                    }
+                }
+            )
+            
         # ----------------------------------------------------
         # IMPORTANT:
         # We DO NOT deduct balance here.
